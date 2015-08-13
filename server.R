@@ -11,8 +11,11 @@ source("functions/mean_analysis.R")
 options(shiny.maxRequestSize = 30*1024^2) # Set the maximum upload file size
 
 shinyServer(function(input, output) {
+  
   values <- reactiveValues()
-  observe({
+  values$cols <- c('Subject','Cond', 'Block', 'Cog', 'TrialType', 'ListLength', 'measure')
+  
+  clean_dat <- reactive({
     inFile <- input$file1
     
     if (is.null(inFile))
@@ -20,71 +23,67 @@ shinyServer(function(input, output) {
     
     dat <- read.csv(inFile$datapath, header = input$header,
                     sep = input$sep, quote = input$quote)
-    values$dat <- preprocess(dat)
-    values$reject_all <- outlier_detection(values$dat)
-    values$clean_dat <- clean(values$dat,values$reject_all)
-    values$scored_dat <- score(values$clean_dat)
-    values$cols <- c('Subject','Cond', 'Block', 'Cog')
-    values$mdat <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','measure')))
-    values$mdat_ll5ttNP <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','measure')), ll=5, tt="NP")
-    values$mdat_aggLL <- mean_trans(values$scored_dat, c(values$cols, c('TrialType','measure')))
-    values$mdat_aggtt <- mean_trans(values$scored_dat, c(values$cols, c('ListLength','measure')))
-    values$mdat_BlockNo <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','BlockNo','measure')))
     
-    #Outlier Plots
-    values$p_out <- outlier_plot(values$dat, values$reject_all)
-    values$p_out_tt <- outlier_plot_tt(values$dat, values$reject_all)
+    dat <- preprocess(dat)
+    reject_all <- outlier_detection(dat)
+    clean(dat, reject_all)
   })
-  output$table <- renderTable({
-    cols <- c(values$cols, 'TrialType', 'ListLength', 'measure')
-    if (input$DS_llbox == 5) { 
+  
+  scored_dat <- reactive({
+    score(clean_dat())
+  })
+  
+  
+  ll <- reactive({
+    #values$cols <- values$cols[values$cols != 'ListLength']
+    if (input$llbox == 5) {
+     # values$cols <- c(values$cols, 'ListLength')
       ll <- 5
     }
     else{
       ll <- c(2:8)
-      cols <- cols[cols != 'ListLength']
     }
-    if (input$DS_ttbox == 1) { 
+  })
+  
+  tt <- reactive({
+    #values$cols <- values$cols[values$cols != 'TrialType']
+    if (input$ttbox == 1) { 
       tt <- c("NP", "NN", "RN")
-      cols <- cols[cols != 'TrialType']
     }
     else{
-      tt <- input$DS_ttbox
+     # values$cols <- c(values$cols, 'TrialType')
+      tt <- input$ttbox
     }
-    DS_dat <- mean_trans(values$scored_dat, cols, ll=ll, tt=tt)
-    cols <- cols[cols != 'Subject']
-    ddply(DS_dat, cols, summarize, dv = mean(dv))
+  })
+    
+
+    mdat <- reactive({
+      mean_trans(scored_dat(), values$cols, ll=ll(), tt=tt())
+    }) 
+    
+    #values$mdat <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','measure')))
+    #values$mdat_ll5ttNP <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','measure')), ll=5, tt="NP")
+    #values$mdat_aggLL <- mean_trans(values$scored_dat, c(values$cols, c('TrialType','measure')))
+    #values$mdat_aggtt <- mean_trans(values$scored_dat, c(values$cols, c('ListLength','measure')))
+    #values$mdat_BlockNo <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','BlockNo','measure')))
+    
+    #Outlier Plots
+    #values$p_out <- outlier_plot(output$dat, output$reject_all)
+    #values$p_out_tt <- outlier_plot_tt(output$dat, output$reject_all)
+
+  
+  output$table <- renderTable({
+    head(mdat())
+    #cols <- colnames(values$mdat)[colnames(values$mdat) != 'Subject' & colnames(values$mdat) != 'dv']
+    #ddply(values$mdat, cols, summarize, dv = mean(dv))
   })
   
   output$tTest <- renderTable({
-    cols <- c(values$cols, 'TrialType', 'ListLength', 'measure')
-    if (input$llbox == 5) { 
-      ll <- 5
-    }
-    else{
-      ll <- c(2:8)
-      cols <- cols[cols != 'ListLength']
-    }
-    if (input$ttbox == 1) { 
-      tt <- c("NP", "NN", "RN")
-      cols <- cols[cols != 'TrialType']
-    }
-    else{
-      if (input$ttbox == 2) { 
-        tt <- "NP"
-      }
-      else{
-        if (input$ttbox == 3) { 
-          tt <- "NN"
-        }
-        else{
-          tt <- "RN"
-        }
-      }
-    }
-    dat_t <- mean_trans(values$scored_dat, cols, ll=ll, tt=tt)
-    t_list <- t.test.cog(dat_t, 'Probe.ERR', within=T)
-    ldply(t_list$ERR, t.summary)
+    #TODO Add 'Probe.RT' and possibly other measures
+    #TODO? RT transformation options
+    #TODO Within vs. Between
+    #t_list <- t.test.cog(values$mdat, 'Probe.ERR', within=T)
+    #ldply(t_list$ERR, t.summary)
   })
   
   output$outlier_plot <- renderPlot({
@@ -97,7 +96,7 @@ shinyServer(function(input, output) {
   output$downloadData <- downloadHandler(
     filename = function() { paste('test', '.csv', sep='') },
     content = function(file) {
-      write.csv(values$dat, file)
+      write.csv(clean_dat(), file)
       drop_upload(file, dest = "drop_test")
     }
   )
