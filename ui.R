@@ -5,10 +5,11 @@ shinyUI(fluidPage(
   sidebarLayout(
     sidebarPanel(
       radioButtons("llbox", 
-                   label = h3("List Lengths Included"), 
+                   label = h3("How to handle list length"), 
                    choices = list("Aggregate" = 1, 
-                                  "List Length 5 Only" = 5),
-                   selected = 5),
+                                  "Seperate List Lengths" = 2),
+                   selected = 2),
+      uiOutput('llOptions'),
       radioButtons("ttbox", 
                    label = h3("Trial Types Included"), 
                    choices = list("Aggregate" = 1, 

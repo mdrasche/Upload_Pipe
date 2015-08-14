@@ -7,41 +7,46 @@ source("functions/pre_process.R")
 source("functions/outliers.R")
 source("functions/score.R")
 source("functions/mean_analysis.R")
+source("functions/widget_helper_funcs.R")
 
 options(shiny.maxRequestSize = 30*1024^2) # Set the maximum upload file size
 
 shinyServer(function(input, output) {
-  
-  values <- reactiveValues()
+  values <- reactiveValues() #
   values$cols <- c('Subject','Cond', 'Block', 'Cog', 'TrialType', 'ListLength', 'measure')
-  
+###Initial Calculations  
   clean_dat <- reactive({
     inFile <- input$file1
-    
     if (is.null(inFile))
       return(NULL)
-    
+    #Load File
     dat <- read.csv(inFile$datapath, header = input$header,
                     sep = input$sep, quote = input$quote)
-    
+    #Preprocess Data
     dat <- preprocess(dat)
     reject_all <- outlier_detection(dat)
     clean(dat, reject_all)
   })
-  
   scored_dat <- reactive({
     score(clean_dat())
+  })
+###Sidebar    
+  #Create Checkbox depending on which listlengths are in data
+  output$llOptions <- renderUI({
+    options <- unique(clean_dat()$ListLength)
+    choices <- optioncreator(options)
+    checkboxGroupInput("llCheckBox", 
+                       label = h3("Include"), 
+                       choices = choices,
+                       selected = 5)
   })
   
   
   ll <- reactive({
     #values$cols <- values$cols[values$cols != 'ListLength']
-    if (input$llbox == 5) {
+    if (length(input$llCheckbox) > 0) {
      # values$cols <- c(values$cols, 'ListLength')
-      ll <- 5
-    }
-    else{
-      ll <- c(2:8)
+      ll <- input$llCheckbox
     }
   })
   
@@ -79,6 +84,7 @@ shinyServer(function(input, output) {
   })
   
   output$tTest <- renderTable({
+    input$llCheckbox
     #TODO Add 'Probe.RT' and possibly other measures
     #TODO? RT transformation options
     #TODO Within vs. Between
