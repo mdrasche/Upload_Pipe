@@ -46,7 +46,11 @@ shinyServer(function(input, output) {
     #values$p_out_tt <- outlier_plot_tt(output$dat, output$reject_all)
 
   output$mytable = renderDataTable({
-    DT::datatable(mdat(), filter = 'top')
+    cols <- colnames(mdat())[!(colnames(mdat()) %in% c('Subject','dv'))]
+    dat <- ddply(mdat(), cols, summarize, 
+                 mean = round(mean(dv, na.rm = T),2), 
+                 sd = round(sd(dv, na.rm = T),2))
+    DT::datatable(dat, filter = 'top')
   })  
   output$table <- renderTable({
     head(mdat())
