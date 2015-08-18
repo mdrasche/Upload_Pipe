@@ -3,6 +3,7 @@ library(plyr)
 library(dplyr)
 library(tidyr)
 library(rdrop2)
+library(DT)
 source("functions/pre_process.R")
 source("functions/outliers.R")
 source("functions/score.R")
@@ -30,53 +31,23 @@ shinyServer(function(input, output) {
   scored_dat <- reactive({
     score(clean_dat())
   })
-###Sidebar    
-  #Create Checkbox depending on which listlengths are in data
-  output$llOptions <- renderUI({
-    options <- unique(clean_dat()$ListLength)
-    choices <- optioncreator(options)
-    checkboxGroupInput("llCheckBox", 
-                       label = h3("Include"), 
-                       choices = choices,
-                       selected = 5)
+###Sidebar  
+  col <- reactive({
+    cols <- c('Subject','Cond', 'Block', 'TrialType', 'ListLength', 'measure')
+    cols <- cols[!(cols %in%  input$aggregator)]
   })
-  
-  
-  ll <- reactive({
-    #values$cols <- values$cols[values$cols != 'ListLength']
-    if (length(input$llCheckbox) > 0) {
-     # values$cols <- c(values$cols, 'ListLength')
-      ll <- input$llCheckbox
-    }
-  })
-  
-  tt <- reactive({
-    #values$cols <- values$cols[values$cols != 'TrialType']
-    if (input$ttbox == 1) { 
-      tt <- c("NP", "NN", "RN")
-    }
-    else{
-     # values$cols <- c(values$cols, 'TrialType')
-      tt <- input$ttbox
-    }
-  })
+  mdat <- reactive({
+    mean_trans(scored_dat(), col())
+  }) 
     
-
-    mdat <- reactive({
-      mean_trans(scored_dat(), values$cols, ll=ll(), tt=tt())
-    }) 
-    
-    #values$mdat <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','measure')))
-    #values$mdat_ll5ttNP <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','measure')), ll=5, tt="NP")
-    #values$mdat_aggLL <- mean_trans(values$scored_dat, c(values$cols, c('TrialType','measure')))
-    #values$mdat_aggtt <- mean_trans(values$scored_dat, c(values$cols, c('ListLength','measure')))
-    #values$mdat_BlockNo <- mean_trans(values$scored_dat, c(values$cols, c('TrialType', 'ListLength','BlockNo','measure')))
     
     #Outlier Plots
     #values$p_out <- outlier_plot(output$dat, output$reject_all)
     #values$p_out_tt <- outlier_plot_tt(output$dat, output$reject_all)
 
-  
+  output$mytable = renderDataTable({
+    DT::datatable(mdat(), filter = 'top')
+  })  
   output$table <- renderTable({
     head(mdat())
     #cols <- colnames(values$mdat)[colnames(values$mdat) != 'Subject' & colnames(values$mdat) != 'dv']

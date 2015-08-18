@@ -4,19 +4,13 @@ shinyUI(fluidPage(
   titlePanel("Uploading Files"),
   sidebarLayout(
     sidebarPanel(
-      radioButtons("llbox", 
-                   label = h3("How to handle list length"), 
-                   choices = list("Aggregate" = 1, 
-                                  "Seperate List Lengths" = 2),
-                   selected = 2),
-      uiOutput('llOptions'),
-      radioButtons("ttbox", 
-                   label = h3("Trial Types Included"), 
-                   choices = list("Aggregate" = 1, 
-                                  "NP Only" = "NP",
-                                  "NN Only" = "NN",
-                                  "RN Only" = "RN"),
-                   selected = "NP")
+      checkboxGroupInput("aggregator", 
+                         label = h3("Aggregate Over"), 
+                         choices = list('List Length' = 'ListLength', 
+                                        'Trial Type' = 'TrialType',
+                                        'Long vs. Short LL' = 'Block',
+                                        'High vs. Low RN' = 'Cond')
+                         )
     ),
     mainPanel(
       tabsetPanel(
@@ -52,7 +46,8 @@ shinyUI(fluidPage(
       ),
       tabPanel("Descriptive Statistics",
                #TODO Choose which statistics to include--checkbox
-                tableOutput('table')
+               DT::dataTableOutput('mytable')
+                #tableOutput('table')
                ),
       tabPanel("t-tests",
               #TODO Choose what comparisons to make
